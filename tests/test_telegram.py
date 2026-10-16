@@ -14,6 +14,7 @@ def client(config, *replies):
 
 
 def test_plain_text_safe_special_characters(config, notice):
+    """공고 제목의 특수문자를 평문으로 안전하게 보내고 상세 링크를 유지한다."""
     text = format_notice({**asdict(notice), 'title': '<b>&_*[] 공고'})
     api, session, _ = client(config, response(body={'ok': True, 'result': {'message_id': 5}}))
     assert api.send(text) == '5'
@@ -24,6 +25,7 @@ def test_plain_text_safe_special_characters(config, notice):
 
 @pytest.mark.parametrize('header', [True, False])
 def test_429_uses_header_or_telegram_retry_after(config, header):
+    """HTTP 429에서 헤더 또는 Telegram 응답의 지정 대기시간을 따른다."""
     api, session, sleep = client(config,
         response(429, body={'ok': False, 'parameters': {'retry_after': 9}},
                  headers={'Retry-After': '7'} if header else {}),
@@ -33,6 +35,7 @@ def test_429_uses_header_or_telegram_retry_after(config, header):
 
 
 def test_json_level_429(config):
+    """HTTP 성공이어도 Telegram 본문이 429이면 지정 시간 후 재시도한다."""
     api, _, sleep = client(config,
         response(body={'ok': False, 'error_code': 429, 'parameters': {'retry_after': 4}}),
         response(body={'ok': True, 'result': {'message_id': 1}}))
@@ -43,6 +46,7 @@ def test_json_level_429(config):
 @pytest.mark.parametrize('reply', [response(500), response(body={'ok': False, 'error_code': 500}),
                                    response(body={'ok': True, 'result': {}})])
 def test_bounded_retries(config, reply):
+    """서버 오류·잘못된 성공 응답을 제한된 횟수만큼 지수 백오프로 재시도한다."""
     api, session, sleep = client(config, reply, reply, reply, reply)
     with pytest.raises(TelegramError):
         api.send('test')
@@ -51,6 +55,7 @@ def test_bounded_retries(config, reply):
 
 
 def test_permanent_error_does_not_retry(config):
+    """Telegram 인증 오류는 불필요하게 재시도하지 않는다."""
     api, session, sleep = client(config, response(401))
     with pytest.raises(TelegramError, match='401'):
         api.send('test')
@@ -59,6 +64,7 @@ def test_permanent_error_does_not_retry(config):
 
 
 def test_network_exception_never_leaks_token(config):
+    """네트워크 오류 메시지에 봇 토큰과 Chat ID를 노출하지 않는다."""
     api, _, _ = client(config, *[requests.ConnectionError('https://api.telegram.org/bot123:secret-test/private-chat')] * 4)
     with pytest.raises(TelegramError) as error:
         api.send('test')

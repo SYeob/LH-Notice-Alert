@@ -219,8 +219,33 @@ Telegram에는 송신 중복을 완전히 막는 키가 없습니다. 성공 직
 ## 테스트와 실제 검증
 
 ```sh
-python -m pytest -q
-python main.py --dry-run
+# 개발 의존성 설치 (HTML 보고서 플러그인 포함)
+.venv/bin/python -m pip install -r requirements-dev.txt
+
+# 전체 테스트: 터미널 진행 로그 + HTML/텍스트 보고서 자동 생성
+.venv/bin/python -m pytest
+
+# macOS에서 결과 보기
+open reports/test-report.html
+```
+
+Windows에서는 `.venv/bin/python` 대신 `.\venv\Scripts\python.exe`를 사용하고 생성된 HTML을 더블클릭합니다.
+
+| 생성 파일 | 내용 |
+|---|---|
+| `reports/test-report.html` | 기능별 한국어 테스트 목적, 결과, 소요 시간, 실행 기록과 실패 상세 |
+| `reports/pytest.log` | 테스트별 시작·성공·실패 및 앱 동작 로그 |
+
+보고서는 CSS와 스크립트를 포함한 단일 HTML 파일이라 별도 서버 없이 브라우저에서 열 수 있습니다. 결과 체크박스로 성공·실패를 필터링하고 각 행을 클릭해 상세 로그를 펼칩니다. 테스트명에는 매개변수별 입력 조건도 표시됩니다. 실패 상황을 의도적으로 검증하는 테스트의 상세 로그에 ERROR가 있어도, 행의 결과가 Passed면 검증 성공입니다.
+
+같은 명령을 다시 실행하면 최신 보고서와 로그로 덮어씁니다. 실행 기록을 별도로 보관하려면 `reports` 안의 파일을 복사하거나 `--html=reports/원하는이름.html -o log_file=reports/원하는이름.log`를 지정합니다. 생성된 보고서와 로그는 Git에서 제외합니다.
+
+```sh
+# 오후 6시 예약 테스트만 실행하면서 별도 보고서 만들기
+.venv/bin/python -m pytest tests/test_scheduler.py --html=reports/scheduler.html -o log_file=reports/scheduler.log
+
+# 실제 LH 조회 검증 (자동 테스트와 별도, DB 저장/발송 없음)
+.venv/bin/python main.py --dry-run
 ```
 
 **자동 테스트 89개 통과.** pytest는 네트워크나 실제 Telegram 없이 HTML fixture와 mock으로 실행합니다. 최초 무알림, 여러 신규 공고, 재시작, 내용 변경, 지역 제외, 빈 목록과 파싱 실패, 페이지네이션, 상세 키 누락, outbox 재시도, 429 및 중복 잠금, DB 롤백과 dry-run 불변성을 검증합니다.

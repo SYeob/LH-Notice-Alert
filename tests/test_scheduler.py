@@ -18,6 +18,7 @@ def seoul(day, hour=18, minute=0, second=0):
     (datetime(2026, 10, 16, 8, tzinfo=timezone.utc), None, seoul(16)),
 ])
 def test_next_seoul_6pm(current, last, expected):
+    """정시 전후·당일 실행 여부·UTC 입력에 맞는 다음 한국 시간 18시를 계산한다."""
     assert next_run_time(current, last_run_date=last) == expected
 
 
@@ -48,6 +49,7 @@ def signals(monkeypatch):
 
 
 def test_waits_until_6pm_without_startup_query_and_claims_date(db):
+    """시작 직후 조회하지 않고 18시까지 기다린 뒤 당일 실행을 먼저 기록한다."""
     clock = [seoul(16, 17, 59, 30)]
     event = FakeEvent(clock)
     monitor = Mock(db=db)
@@ -64,6 +66,7 @@ def test_waits_until_6pm_without_startup_query_and_claims_date(db):
 
 
 def test_restart_after_6pm_waits_until_tomorrow(db):
+    """오후 6시 이후 시작하면 즉시 조회하지 않고 다음 날까지 기다린다."""
     clock = [seoul(16, 19)]
     event = FakeEvent(clock, lambda stop, seconds: stop.set())
     monitor = Mock(db=db)
@@ -73,6 +76,7 @@ def test_restart_after_6pm_waits_until_tomorrow(db):
 
 
 def test_failure_is_not_rescheduled_same_day(db):
+    """정기 조회가 실패해도 같은 날 자동으로 다시 조회하지 않는다."""
     clock = [seoul(16)]
     event = FakeEvent(clock, lambda stop, seconds: stop.set())
     monitor = Mock(db=db)
@@ -84,6 +88,7 @@ def test_failure_is_not_rescheduled_same_day(db):
 
 
 def test_sleep_past_midnight_skips_old_day(db):
+    """잠자기 중 날짜가 지나면 지난 날짜를 몰아서 조회하지 않는다."""
     clock = [seoul(16, 17, 59)]
 
     def wake(stop, seconds):
@@ -100,6 +105,7 @@ def test_sleep_past_midnight_skips_old_day(db):
 
 
 def test_delayed_same_day_wakeup_runs_once(db):
+    """같은 날 늦게 깨어나면 그날의 정기 조회를 한 번 수행한다."""
     clock = [seoul(16, 17, 59)]
     event = FakeEvent(clock, lambda stop, seconds: clock.__setitem__(0, seoul(16, 19)))
     monitor = Mock(db=db)

@@ -6,6 +6,7 @@ from src.database import Database
 
 
 def test_restart_retains_outbox_and_first_detection(config, notice):
+    """DB 재연결 후 발송 대기·성공 상태와 최초 감지 시각을 유지한다."""
     db = Database(config.db_path)
     db.ingest([])
     db.ingest([notice])
@@ -24,6 +25,7 @@ def test_restart_retains_outbox_and_first_detection(config, notice):
 
 
 def test_transaction_rolls_back_entire_snapshot(db, notice):
+    """일부 공고 저장이 실패하면 조회 결과 전체를 롤백한다."""
     with pytest.raises(sqlite3.IntegrityError):
         db.ingest([notice, replace(notice, notice_id='invalid', title=None)])
     assert db.summary()['notices'] == 0
@@ -31,6 +33,7 @@ def test_transaction_rolls_back_entire_snapshot(db, notice):
 
 
 def test_read_only_absent_db_creates_no_file(config):
+    """없는 DB를 읽기 전용으로 확인해도 파일을 만들지 않는다."""
     db = Database(config.db_path, read_only=True)
     assert db.summary()['notices'] == 0
     assert not config.db_path.exists()
@@ -38,6 +41,7 @@ def test_read_only_absent_db_creates_no_file(config):
 
 
 def test_read_only_existing_db_cannot_mutate(config, db):
+    """읽기 전용 연결에서는 기존 DB 변경을 거부한다."""
     reader = Database(config.db_path, read_only=True)
     try:
         with pytest.raises(sqlite3.OperationalError):
@@ -47,6 +51,7 @@ def test_read_only_existing_db_cannot_mutate(config, db):
 
 
 def test_duplicate_process_lock(config):
+    """동일 DB의 실행 잠금을 중복 획득할 수 없다."""
     with FileLock(str(config.db_path) + '.lock', timeout=0):
         with pytest.raises(Timeout):
             with FileLock(str(config.db_path) + '.lock', timeout=0):
